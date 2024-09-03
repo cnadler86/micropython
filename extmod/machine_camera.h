@@ -43,10 +43,11 @@
 
 typedef struct _camera_obj_t {
     mp_obj_base_t       base;
-    camera_config_t     config; //TODO: define camera_config_t where?
+    mp_camera_config_t  config;
     bool                initialized;
 } mp_camera_obj_t;
 
+// TODO: replace with MP pin types
 typedef struct {
     int pin_d0;
     int pin_d1;
@@ -67,11 +68,70 @@ typedef struct {
     int xclk_freq_hz;
     int fb_count;
     int jpeg_quality;
-    camera_pixelformat_t pixel_format;
-    camera_framesize_t frame_size;
-    camera_fb_location_t fb_location;
-    camera_grab_mode_t grab_mode;
-} camera_config_t;
+    mp_camera_pixformat_t pixel_format;
+    mp_camera_framesize_t frame_size;
+    mp_camera_fb_location_t fb_location;
+    mp_camera_grab_mode_t grab_mode;
+} mp_camera_config_t;
+
+//TODO: decide if reorder or not
+typedef enum {
+    PIXFORMAT_RGB565,    // 2BPP/RGB565
+    PIXFORMAT_YUV422,    // 2BPP/YUV422
+    PIXFORMAT_YUV420,    // 1.5BPP/YUV420
+    PIXFORMAT_GRAYSCALE, // 1BPP/GRAYSCALE
+    PIXFORMAT_JPEG,      // JPEG/COMPRESSED
+    PIXFORMAT_RGB888,    // 3BPP/RGB888
+    PIXFORMAT_RAW,       // RAW
+    PIXFORMAT_RGB444,    // 3BP2P/RGB444
+    PIXFORMAT_RGB555,    // 3BP2P/RGB555
+} mp_camera_pixformat_t;
+
+typedef enum {
+    FRAMESIZE_96X96,    // 96x96
+    FRAMESIZE_QQVGA,    // 160x120
+    FRAMESIZE_QCIF,     // 176x144
+    FRAMESIZE_HQVGA,    // 240x176
+    FRAMESIZE_240X240,  // 240x240
+    FRAMESIZE_QVGA,     // 320x240
+    FRAMESIZE_CIF,      // 400x296
+    FRAMESIZE_HVGA,     // 480x320
+    FRAMESIZE_VGA,      // 640x480
+    FRAMESIZE_SVGA,     // 800x600
+    FRAMESIZE_XGA,      // 1024x768
+    FRAMESIZE_HD,       // 1280x720
+    FRAMESIZE_SXGA,     // 1280x1024
+    FRAMESIZE_UXGA,     // 1600x1200
+    // 3MP Sensors
+    FRAMESIZE_FHD,      // 1920x1080
+    FRAMESIZE_P_HD,     //  720x1280
+    FRAMESIZE_P_3MP,    //  864x1536
+    FRAMESIZE_QXGA,     // 2048x1536
+    // 5MP Sensors
+    FRAMESIZE_QHD,      // 2560x1440
+    FRAMESIZE_WQXGA,    // 2560x1600
+    FRAMESIZE_P_FHD,    // 1080x1920
+    FRAMESIZE_QSXGA,    // 2560x1920
+} mp_camera_framesize_t;
+
+typedef enum {
+    GAINCEILING_2X,
+    GAINCEILING_4X,
+    GAINCEILING_8X,
+    GAINCEILING_16X,
+    GAINCEILING_32X,
+    GAINCEILING_64X,
+    GAINCEILING_128X,
+} mp_camera_gainceiling_t;
+typedef enum {
+    CAMERA_FB_IN_PSRAM,         /*!< Frame buffer is placed in external PSRAM */
+    CAMERA_FB_IN_DRAM,           /*!< Frame buffer is placed in internal DRAM */
+} mp_camera_fb_location_t;
+
+typedef enum {
+    CAMERA_GRAB_WHEN_EMPTY,         /*!< Fills buffers when they are empty. Less resources but first 'fb_count' frames might be old */
+    CAMERA_GRAB_LATEST,              /*!< Except when 1 frame buffer is used, queue will always contain the last 'fb_count' frames */
+} mp_camera_grab_mode_t;
 
 // TODO: replace with actual camera object and type
 extern const mp_obj_type_t espcamera_camera_type;
@@ -95,9 +155,12 @@ extern void machine_hw_camera_construct(
     mp_int_t framebuffer_count,
     camera_grab_mode_t grab_mode);
 
+extern void machine_hw_camera_init(mp_camera_obj_t *self);
 extern void machine_hw_camera_deinit(mp_camera_obj_t *self);
-extern camera_fb_t *machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
 extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, framesize_t frame_size, pixformat_t pixel_format, camera_grab_mode_t grab_mode, mp_int_t framebuffer_count);
+
+//TODO: decide function signature
+extern camera_fb_t *machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
 
 #define DECLARE_SENSOR_GETSET(type, name, field_name, setter_function_name) \
     DECLARE_SENSOR_GET(type, name, field_name, setter_function_name) \
@@ -115,14 +178,14 @@ extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, framesize_t fra
 #define DECLARE_SENSOR_SET(type, name, setter_function_name) \
     extern void machine_hw_camera_set_##name(mp_camera_obj_t * self, type value);
 
-DECLARE_SENSOR_GET(pixformat_t, pixel_format, pixformat, set_pixformat)
-DECLARE_SENSOR_STATUS_GET(framesize_t, frame_size, framesize, set_framesize)
+DECLARE_SENSOR_GET(mp_camera_pixformat_t, pixel_format, pixformat, set_pixformat)
+DECLARE_SENSOR_STATUS_GET(mp_camera_framesize_t, frame_size, framesize, set_framesize)
 DECLARE_SENSOR_STATUS_GETSET(int, contrast, contrast, set_contrast);
 DECLARE_SENSOR_STATUS_GETSET(int, brightness, brightness, set_brightness);
 DECLARE_SENSOR_STATUS_GETSET(int, saturation, saturation, set_saturation);
 DECLARE_SENSOR_STATUS_GETSET(int, sharpness, sharpness, set_sharpness);
 DECLARE_SENSOR_STATUS_GETSET(int, denoise, denoise, set_denoise);
-DECLARE_SENSOR_STATUS_GETSET(gainceiling_t, gainceiling, gainceiling, set_gainceiling);
+DECLARE_SENSOR_STATUS_GETSET(mp_camera_gainceiling_t, gainceiling, gainceiling, set_gainceiling);
 DECLARE_SENSOR_STATUS_GETSET(int, quality, quality, set_quality);
 DECLARE_SENSOR_STATUS_GETSET(bool, colorbar, colorbar, set_colorbar);
 DECLARE_SENSOR_STATUS_GETSET(bool, whitebal, whitebal, set_whitebal);

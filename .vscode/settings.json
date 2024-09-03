@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "runtime.h": "c",
+        "modmachine.h": "c",
+        "vfs_fat.h": "c"
+    }
+}

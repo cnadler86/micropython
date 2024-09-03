@@ -29,23 +29,16 @@
 
 #include "py/runtime.h"
 #include "py/mperrno.h"
-#include "extmod/modmachine.h" //Needs to add machine_camera_type and maybe other things, or do we handle everything here?
 #include "py/mphal.h" //Maybe we can add here MICROPY_PY_MACHINE_CAMERA (0), otherwise not needed
 
 #if (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3) && MICROPY_PY_MACHINE_CAMERA
+#include "extmod/machine_camera.h"
 #include "esp_camera.h" //maybe driver/esp_camera.h, but don't know yet where will the driver be located in esp-idf
 #include "esp_err.h"
-#include "machine_camera.h" //don't think I will need a searate header
 
 #if !CONFIG_SPIRAM
 #error espcamera only works on boards configured with spiram
 #endif
-
-typedef struct _camera_obj_t {
-    mp_obj_base_t       base;
-    camera_config_t     config;         //Type defined in esp32_camera driver
-    bool                initialized;
-} machine_hw_camera_obj_t; //Maybe in separate header file
 
 void raise_micropython_error_from_esp_err(esp_err_t err) {
     switch (err) {
@@ -82,7 +75,7 @@ void raise_micropython_error_from_esp_err(esp_err_t err) {
     }
 }
 
-void machine_hw_camera_init(machine_hw_camera_obj_t *self) {
+void machine_hw_camera_init(mp_camera_obj_t *self) {
     if (self->initialized) {
         return;
     }
@@ -95,7 +88,7 @@ void machine_hw_camera_init(machine_hw_camera_obj_t *self) {
     machine_hw_camera_reconfigure(&self);
 }
 
-void machine_hw_camera_deinit(machine_hw_camera_obj_t *self) {
+void machine_hw_camera_deinit(mp_camera_obj_t *self) {
     if (self->initialized) {
         esp_err_t err = esp_camera_deinit();
         raise_micropython_error_from_esp_err(err);
@@ -103,7 +96,7 @@ void machine_hw_camera_deinit(machine_hw_camera_obj_t *self) {
     }
 }
 
-mp_obj_t machine_hw_camera_capture(machine_hw_camera_obj_t *self) {
+mp_obj_t machine_hw_camera_capture(mp_camera_obj_t *self) {
     if (!self->initialized) {
         mp_raise_OSError_msg_varg(MP_EIO, "Failed to capture image: Camera not initialized");
     }
@@ -116,7 +109,7 @@ mp_obj_t machine_hw_camera_capture(machine_hw_camera_obj_t *self) {
     return image;
 }
 
-void machine_hw_camera_reconfigure(machine_hw_camera_obj_t *self) {
+void machine_hw_camera_reconfigure(mp_camera_obj_t *self) {
     if (self->initialized) {
         sensor_t *sensor = esp_camera_sensor_get();
         camera_sensor_info_t *sensor_info = esp_camera_sensor_get_info(&sensor->id);
@@ -151,7 +144,7 @@ void machine_hw_camera_reconfigure(machine_hw_camera_obj_t *self) {
     SENSOR_SET(type, name, setter_function_name)
 
 #define SENSOR_GET(type, name, status_field_name, getter_function_name) \
-    type machine_hw_camera_get_##name(machine_hw_camera_obj_t * self) { \
+    type machine_hw_camera_get_##name(mp_camera_obj_t * self) { \
         sensor_t *sensor = esp_camera_sensor_get(); \
         if (!sensor->getter_function_name) { \
             mp_raise_AttributeError(MP_ERROR_TEXT("no such attribute")); \
@@ -160,7 +153,7 @@ void machine_hw_camera_reconfigure(machine_hw_camera_obj_t *self) {
     }
 
 #define SENSOR_SET(type, name, setter_function_name) \
-    void machine_hw_camera_set_##name(machine_hw_camera_obj_t * self, type value) { \
+    void machine_hw_camera_set_##name(mp_camera_obj_t * self, type value) { \
         sensor_t *sensor = esp_camera_sensor_get(); \
         if (!sensor->setter_function_name) { \
             mp_raise_AttributeError(MP_ERROR_TEXT("no such attribute")); \
@@ -197,54 +190,54 @@ SENSOR_STATUS_GETSET(bool, raw_gma, raw_gma, set_raw_gma);
 SENSOR_STATUS_GETSET(bool, lenc, lenc, set_lenc);
 
 
-pixformat_t machine_hw_camera_get_pixel_format(machine_hw_camera_obj_t *self) {
+pixformat_t machine_hw_camera_get_pixel_format(mp_camera_obj_t *self) {
     return self->camera_config.pixel_format;
 }
 
-framesize_t machine_hw_camera_get_frame_size(machine_hw_camera_obj_t *self) {
+framesize_t machine_hw_camera_get_frame_size(mp_camera_obj_t *self) {
     return self->camera_config.frame_size;
 }
 
-const camera_grab_mode_t machine_hw_camera_get_grab_mode(machine_hw_camera_obj_t *self) {
+const camera_grab_mode_t machine_hw_camera_get_grab_mode(mp_camera_obj_t *self) {
     return self->camera_config.grab_mode;
 }
 
-const int machine_hw_camera_get_framebuffer_count(machine_hw_camera_obj_t *self) {
+const int machine_hw_camera_get_framebuffer_count(mp_camera_obj_t *self) {
     return self->camera_config.fb_count;
 }
 
-const char *machine_hw_camera_get_sensor_name(machine_hw_camera_obj_t *self) {
+const char *machine_hw_camera_get_sensor_name(mp_camera_obj_t *self) {
     sensor_t *sensor = esp_camera_sensor_get();
     camera_sensor_info_t *sensor_info = esp_camera_sensor_get_info(&sensor->id);
     return sensor_info->name;
 }
 
-const bool machine_hw_camera_get_supports_jpeg(machine_hw_camera_obj_t *self) {
+const bool machine_hw_camera_get_supports_jpeg(mp_camera_obj_t *self) {
     sensor_t *sensor = esp_camera_sensor_get();
     camera_sensor_info_t *sensor_info = esp_camera_sensor_get_info(&sensor->id);
     return sensor_info->support_jpeg;
 }
 
-const framesize_t machine_hw_camera_get_max_frame_size(machine_hw_camera_obj_t *self) {
+const framesize_t machine_hw_camera_get_max_frame_size(mp_camera_obj_t *self) {
     sensor_t *sensor = esp_camera_sensor_get();
     camera_sensor_info_t *sensor_info = esp_camera_sensor_get_info(&sensor->id);
     return sensor_info->max_size;
 }
 
-const int machine_hw_camera_get_address(machine_hw_camera_obj_t *self) {
+const int machine_hw_camera_get_address(mp_camera_obj_t *self) {
     sensor_t *sensor = esp_camera_sensor_get();
     camera_sensor_info_t *sensor_info = esp_camera_sensor_get_info(&sensor->id);
     return sensor_info->sccb_addr;
 }
 
 // TODO: Need to take a look at resolution
-// const int machine_hw_camera_get_width(machine_hw_camera_obj_t *self) {
+// const int machine_hw_camera_get_width(mp_camera_obj_t *self) {
 //     sensor_t *sensor = esp_camera_sensor_get();
 //     framesize_t framesize = sensor->status.framesize;
 //     return resolution[framesize].width;
 // }
 
-// const int machine_hw_camera_get_height(machine_hw_camera_obj_t *self) {
+// const int machine_hw_camera_get_height(mp_camera_obj_t *self) {
 //     sensor_t *sensor = esp_camera_sensor_get();
 //     framesize_t framesize = sensor->status.framesize;
 //     return resolution[framesize].height;
@@ -254,7 +247,7 @@ const int machine_hw_camera_get_address(machine_hw_camera_obj_t *self) {
 // MicroPython bindings for machine API
 
 static void machine_hw_camera_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
-    machine_hw_camera_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_camera_obj_t *self = MP_OBJ_TO_PTR(self_in);
     // TODO
     mp_printf(print, "",);
 }

@@ -3,5 +3,6 @@
         "runtime.h": "c",
         "modmachine.h": "c",
         "vfs_fat.h": "c"
-    }
+    },
+    "cmake.sourceDirectory": "C:/Users/nadlech/Desktop/Privat/micropython/ports/esp32"
 }

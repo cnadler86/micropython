@@ -24,18 +24,17 @@
  * THE SOFTWARE.
  */
 
-#include "py/runtime.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "py/mperrno.h"
 #include "py/mphal.h"
-#include "modesp32cam.h"
+#include "py/runtime.h"
+#include "extmod/modmachine.h"
 
-#if CONFIG_ESP32_CAMERA_ENABLED
-#include "modesp32cam.h"
-
-typedef struct _camera_obj_t {
-    mp_obj_base_t       base;
-    camera_config_t     config; //TODO: define camera_config_t where?
-    bool                initialized;
-} mp_camera_obj_t;
+#if MICROPY_PY_MACHINE_CAMERA
+#include "machine_camera.h"
 
 static mp_obj_t camera_init(mp_map_t *kw_args) {
     camera_obj_t *camera = m_new_obj_with_finaliser(camera_obj_t);
@@ -264,4 +263,4 @@ const mp_obj_module_t mp_module_esp32_camera = {
 
 MP_REGISTER_MODULE(MP_QSTR_camera, mp_module_esp32_camera);
 
-#endif // CONFIG_ESP32_CAMERA_ENABLED
+#endif // MICROPY_PY_MACHINE_CAMERA

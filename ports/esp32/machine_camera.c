@@ -27,13 +27,8 @@
  * THE SOFTWARE.
  */
 
-#include "py/runtime.h"
-#include "py/mperrno.h"
-#include "py/mphal.h" //Maybe we can add here MICROPY_PY_MACHINE_CAMERA (0), otherwise not needed
-
 #if (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3) && MICROPY_PY_MACHINE_CAMERA
 #include "extmod/machine_camera.h"
-#include "esp_camera.h" //maybe driver/esp_camera.h, but don't know yet where will the driver be located in esp-idf
 #include "esp_err.h"
 
 #if !CONFIG_SPIRAM
@@ -75,6 +70,27 @@ void raise_micropython_error_from_esp_err(esp_err_t err) {
     }
 }
 
+void machine_hw_camera_construct(
+    mp_camera_obj_t *self,
+    uint8_t data_pins[8],
+    uint8_t external_clock_pin,
+    uint8_t pixel_clock_pin,
+    uint8_t vsync_pin,
+    uint8_t href_pin,
+    uint8_t powerdown_pin,
+    uint8_t reset_pin,
+    uint8_t sccb_sda_pin,
+    uint8_t sccb_scl_pin,
+    uint8_t xclk_freq_hz,
+    mp_camera_pixformat_t pixel_format,
+    mp_camera_framesize_t frame_size,
+    uint8_t jpeg_quality,
+    uint8_t framebuffer_count,
+    camera_grab_mode_t grab_mode) {
+        //TODO
+    }
+
+
 void machine_hw_camera_init(mp_camera_obj_t *self) {
     if (self->initialized) {
         return;
@@ -96,17 +112,16 @@ void machine_hw_camera_deinit(mp_camera_obj_t *self) {
     }
 }
 
-mp_obj_t machine_hw_camera_capture(mp_camera_obj_t *self) {
+mp_camera_fb_t machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms) {
+    // Timeout not used at the moment
     if (!self->initialized) {
         mp_raise_OSError_msg_varg(MP_EIO, "Failed to capture image: Camera not initialized");
     }
-    camera_fb_t * fb = esp_camera_fb_get();
-    if (!fb) {
-        mp_raise_OSError_msg_varg(MP_EIO, "Failed to capture image: Camera returned no data");
+    if (self->capture_buffer) {
+        esp_camera_fb_return(self->capture_buffer);
+        self->capture_buffer = NULL;
     }
-    mp_obj_t image = mp_obj_new_bytes(fb->buf, fb->len);
-    esp_camera_fb_return(fb); //return memory
-    return image;
+    return self->capture_buffer = esp_camera_fb_get();
 }
 
 void machine_hw_camera_reconfigure(mp_camera_obj_t *self) {
@@ -168,7 +183,7 @@ SENSOR_STATUS_GETSET(int, brightness, brightness, set_brightness);
 SENSOR_STATUS_GETSET(int, saturation, saturation, set_saturation);
 SENSOR_STATUS_GETSET(int, sharpness, sharpness, set_sharpness);
 SENSOR_STATUS_GETSET(int, denoise, denoise, set_denoise);
-SENSOR_STATUS_GETSET(gainceiling_t, gainceiling, gainceiling, set_gainceiling);
+SENSOR_STATUS_GETSET(mp_camera_gainceiling_t, gainceiling, gainceiling, set_gainceiling);
 SENSOR_STATUS_GETSET(int, quality, quality, set_quality);
 SENSOR_STATUS_GETSET(bool, colorbar, colorbar, set_colorbar);
 SENSOR_STATUS_GETSET(bool, whitebal, awb, set_whitebal);
@@ -190,11 +205,11 @@ SENSOR_STATUS_GETSET(bool, raw_gma, raw_gma, set_raw_gma);
 SENSOR_STATUS_GETSET(bool, lenc, lenc, set_lenc);
 
 
-pixformat_t machine_hw_camera_get_pixel_format(mp_camera_obj_t *self) {
+mp_camera_pixformat_t machine_hw_camera_get_pixel_format(mp_camera_obj_t *self) {
     return self->camera_config.pixel_format;
 }
 
-framesize_t machine_hw_camera_get_frame_size(mp_camera_obj_t *self) {
+mp_camera_framesize_t machine_hw_camera_get_frame_size(mp_camera_obj_t *self) {
     return self->camera_config.frame_size;
 }
 
@@ -218,7 +233,7 @@ const bool machine_hw_camera_get_supports_jpeg(mp_camera_obj_t *self) {
     return sensor_info->support_jpeg;
 }
 
-const framesize_t machine_hw_camera_get_max_frame_size(mp_camera_obj_t *self) {
+const mp_camera_framesize_t machine_hw_camera_get_max_frame_size(mp_camera_obj_t *self) {
     sensor_t *sensor = esp_camera_sensor_get();
     camera_sensor_info_t *sensor_info = esp_camera_sensor_get_info(&sensor->id);
     return sensor_info->max_size;

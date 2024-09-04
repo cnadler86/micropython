@@ -32,136 +32,58 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "py/enum.h"
-#include "py/obj.h"
 #include "py/mperrno.h"
-#include "py/mphal.h"
+#include "py/mphal.h"   //Maybe we can add here MICROPY_PY_MACHINE_CAMERA (0), otherwise not needed
 #include "py/runtime.h"
-#include "extmod/modmachine.h"
 
 #if MICROPY_PY_MACHINE_CAMERA
 
-typedef struct _camera_obj_t {
+#if MICROPY_HW_ESP32
+#include "esp_camera.h" //maybe driver/esp_camera.h, but don't know yet where will the driver be located in esp-idf
+#include "sensor.h"
+
+typedef struct _mp_camera_obj_t {
     mp_obj_base_t       base;
     mp_camera_config_t  config;
     bool                initialized;
+    mp_camera_fb_t      *capture_buffer;
 } mp_camera_obj_t;
 
-// TODO: replace with MP pin types
-typedef struct {
-    int pin_d0;
-    int pin_d1;
-    int pin_d2;
-    int pin_d3;
-    int pin_d4;
-    int pin_d5;
-    int pin_d6;
-    int pin_d7;
-    int pin_vsync;
-    int pin_href;
-    int pin_pclk;
-    int pin_pwdn;
-    int pin_reset;
-    int pin_xclk;
-    int pin_sscb_sda;
-    int pin_sscb_scl;
-    int xclk_freq_hz;
-    int fb_count;
-    int jpeg_quality;
-    mp_camera_pixformat_t pixel_format;
-    mp_camera_framesize_t frame_size;
-    mp_camera_fb_location_t fb_location;
-    mp_camera_grab_mode_t grab_mode;
-} mp_camera_config_t;
+typedef camera_config_t mp_camera_config_t;
+typedef pixformat_t  mp_camera_pixformat_t;
+typedef framesize_t  mp_camera_framesize_t;
+typedef camera_fb_location_t mp_camera_fb_location_t;
+typedef camera_grab_mode_t mp_camera_grab_mode_t;
+typedef gainceiling_t mp_camera_gainceiling_t;
+typedef camera_fb_t mp_camera_fb_t;
+#endif //MICROPY_HW_xxx
 
-//TODO: decide if reorder or not
-typedef enum {
-    PIXFORMAT_RGB565,    // 2BPP/RGB565
-    PIXFORMAT_YUV422,    // 2BPP/YUV422
-    PIXFORMAT_YUV420,    // 1.5BPP/YUV420
-    PIXFORMAT_GRAYSCALE, // 1BPP/GRAYSCALE
-    PIXFORMAT_JPEG,      // JPEG/COMPRESSED
-    PIXFORMAT_RGB888,    // 3BPP/RGB888
-    PIXFORMAT_RAW,       // RAW
-    PIXFORMAT_RGB444,    // 3BP2P/RGB444
-    PIXFORMAT_RGB555,    // 3BP2P/RGB555
-} mp_camera_pixformat_t;
-
-typedef enum {
-    FRAMESIZE_96X96,    // 96x96
-    FRAMESIZE_QQVGA,    // 160x120
-    FRAMESIZE_QCIF,     // 176x144
-    FRAMESIZE_HQVGA,    // 240x176
-    FRAMESIZE_240X240,  // 240x240
-    FRAMESIZE_QVGA,     // 320x240
-    FRAMESIZE_CIF,      // 400x296
-    FRAMESIZE_HVGA,     // 480x320
-    FRAMESIZE_VGA,      // 640x480
-    FRAMESIZE_SVGA,     // 800x600
-    FRAMESIZE_XGA,      // 1024x768
-    FRAMESIZE_HD,       // 1280x720
-    FRAMESIZE_SXGA,     // 1280x1024
-    FRAMESIZE_UXGA,     // 1600x1200
-    // 3MP Sensors
-    FRAMESIZE_FHD,      // 1920x1080
-    FRAMESIZE_P_HD,     //  720x1280
-    FRAMESIZE_P_3MP,    //  864x1536
-    FRAMESIZE_QXGA,     // 2048x1536
-    // 5MP Sensors
-    FRAMESIZE_QHD,      // 2560x1440
-    FRAMESIZE_WQXGA,    // 2560x1600
-    FRAMESIZE_P_FHD,    // 1080x1920
-    FRAMESIZE_QSXGA,    // 2560x1920
-} mp_camera_framesize_t;
-
-typedef enum {
-    GAINCEILING_2X,
-    GAINCEILING_4X,
-    GAINCEILING_8X,
-    GAINCEILING_16X,
-    GAINCEILING_32X,
-    GAINCEILING_64X,
-    GAINCEILING_128X,
-} mp_camera_gainceiling_t;
-typedef enum {
-    CAMERA_FB_IN_PSRAM,         /*!< Frame buffer is placed in external PSRAM */
-    CAMERA_FB_IN_DRAM,           /*!< Frame buffer is placed in internal DRAM */
-} mp_camera_fb_location_t;
-
-typedef enum {
-    CAMERA_GRAB_WHEN_EMPTY,         /*!< Fills buffers when they are empty. Less resources but first 'fb_count' frames might be old */
-    CAMERA_GRAB_LATEST,              /*!< Except when 1 frame buffer is used, queue will always contain the last 'fb_count' frames */
-} mp_camera_grab_mode_t;
-
-// TODO: replace with actual camera object and type
-extern const mp_obj_type_t espcamera_camera_type;
-typedef struct espcamera_camera_obj mp_camera_obj_t;
-
-// TODO: define constructor and replace with MP-Types
+// TODO: define how to integrate external time source in constructor (e.g. in ESP is LED-Timer). Now the plattform defines a default pwm-time source
 extern void machine_hw_camera_construct(
     mp_camera_obj_t *self,
     uint8_t data_pins[8],
-    const mcu_pin_obj_t *external_clock_pin,
-    const mcu_pin_obj_t *pixel_clock_pin,
-    const mcu_pin_obj_t *vsync_pin,
-    const mcu_pin_obj_t *href_pin,
-    const mcu_pin_obj_t *powerdown_pin,
-    const mcu_pin_obj_t *reset_pin,
-    busio_i2c_obj_t *i2c,
-    mp_int_t external_clock_frequency,
-    pixformat_t pixel_format,
-    framesize_t frame_size,
-    mp_int_t jpeg_quality,
-    mp_int_t framebuffer_count,
+    uint8_t external_clock_pin,
+    uint8_t pixel_clock_pin,
+    uint8_t vsync_pin,
+    uint8_t href_pin,
+    uint8_t powerdown_pin,
+    uint8_t reset_pin,
+    uint8_t sccb_sda_pin,
+    uint8_t sccb_scl_pin,
+    uint8_t xclk_freq_hz,
+    mp_camera_pixformat_t pixel_format,
+    mp_camera_framesize_t frame_size,
+    uint8_t jpeg_quality,
+    uint8_t framebuffer_count,
     camera_grab_mode_t grab_mode);
 
-extern void machine_hw_camera_init(mp_camera_obj_t *self);
+extern void machine_hw_camera_init(mp_camera_obj_t *self); //since we are not passing handles at construction, init() is used to create those handles
 extern void machine_hw_camera_deinit(mp_camera_obj_t *self);
-extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, framesize_t frame_size, pixformat_t pixel_format, camera_grab_mode_t grab_mode, mp_int_t framebuffer_count);
+extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, framesize_t frame_size, pixformat_t pixel_format, camera_grab_mode_t grab_mode, uint8_t framebuffer_count);
 
-//TODO: decide function signature
-extern camera_fb_t *machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
+extern mp_camera_fb_t *machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
 
+// From here on are helper functions to get and set sensor properties and might not be imlemented yet
 #define DECLARE_SENSOR_GETSET(type, name, field_name, setter_function_name) \
     DECLARE_SENSOR_GET(type, name, field_name, setter_function_name) \
     DECLARE_SENSOR_SET(type, name, setter_function_name)
@@ -214,7 +136,7 @@ extern int machine_hw_camera_get_framebuffer_count(mp_camera_obj_t *self);
 extern int machine_hw_camera_get_address(mp_camera_obj_t *self);
 extern const char *machine_hw_camera_get_sensor_name(mp_camera_obj_t *self);
 extern const bool machine_hw_camera_get_supports_jpeg(mp_camera_obj_t *self);
-extern framesize_t machine_hw_camera_get_max_frame_size(mp_camera_obj_t *self);
+extern mp_camera_framesize_t machine_hw_camera_get_max_frame_size(mp_camera_obj_t *self);
 extern int machine_hw_camera_get_width(mp_camera_obj_t *self);
 extern int machine_hw_camera_get_height(mp_camera_obj_t *self);
 

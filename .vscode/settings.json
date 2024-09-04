@@ -4,7 +4,10 @@
         "modmachine.h": "c",
         "vfs_fat.h": "c",
         "mphal.h": "c",
-        "machine_camera.h": "c"
+        "machine_camera.h": "c",
+        "cstdint": "c",
+        "cstdlib": "c",
+        "string.h": "c"
     },
     "cmake.sourceDirectory": "C:/Users/nadlech/Desktop/Privat/micropython/ports/esp32"
 }

@@ -31,7 +31,7 @@
 #include "extmod/machine_camera.h"
 #include "esp_err.h"
 
-#if !CONFIG_SPIRAM
+#if !CONFIG_SPIRAM //TODO: Better test if enought RAM is available on runtime
 #error espcamera only works on boards configured with spiram
 #endif
 
@@ -115,7 +115,7 @@ void machine_hw_camera_deinit(mp_camera_obj_t *self) {
 mp_camera_fb_t machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms) {
     // Timeout not used at the moment
     if (!self->initialized) {
-        mp_raise_OSError_msg_varg(MP_EIO, "Failed to capture image: Camera not initialized");
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Failed to capture image: Camera not initialized"));
     }
     if (self->capture_buffer) {
         esp_camera_fb_return(self->capture_buffer);

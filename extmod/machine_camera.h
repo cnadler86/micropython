@@ -36,6 +36,7 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"   //Maybe we can add here MICROPY_PY_MACHINE_CAMERA (0), otherwise not needed
 #include "py/runtime.h"
+#include "py/obj.h"
 
 #if MICROPY_PY_MACHINE_CAMERA
 
@@ -53,7 +54,6 @@
 
 #if MICROPY_HW_ESP32
 #include "esp_camera.h" //maybe driver/esp_camera.h, but don't know yet where will the driver be located in esp-idf
-#include "sensor.h"
 
 typedef struct _mp_camera_obj_t {
     mp_obj_base_t       base;
@@ -71,7 +71,8 @@ typedef gainceiling_t mp_camera_gainceiling_t;
 typedef camera_fb_t mp_camera_fb_t;
 #endif //MICROPY_HW_xxx
 
-// TODO: define how to integrate external time source in constructor (e.g. in ESP is LED-Timer). Now the plattform defines a default pwm-time source
+// TODO:    Define how to integrate external time source in constructor (e.g. in ESP is LED-Timer).
+//          Now the plattform defines a default pwm-time source and also frame buffer location in its constructor
 extern void machine_hw_camera_construct(
     mp_camera_obj_t *self,
     uint8_t data_pins[8],
@@ -94,7 +95,7 @@ extern void machine_hw_camera_init(mp_camera_obj_t *self); //since we are not pa
 extern void machine_hw_camera_deinit(mp_camera_obj_t *self);
 extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, mp_camera_framesize_t frame_size, mp_camera_pixformat_t pixel_format, mp_camera_grab_mode_t grab_mode, uint8_t framebuffer_count);
 
-extern mp_camera_fb_t *machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
+extern mp_obj_t machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
 
 // From here on are helper functions to get and set sensor properties and might not be imlemented yet
 #define DECLARE_SENSOR_GETSET(type, name, field_name, setter_function_name) \

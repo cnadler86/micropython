@@ -87,9 +87,38 @@ void machine_hw_camera_construct(
     uint8_t jpeg_quality,
     uint8_t framebuffer_count,
     camera_grab_mode_t grab_mode) {
-        //TODO
-    }
+        // configure camera based on arguments
+        self->camera_config.pixel_format = pixel_format;
+        self->camera_config.frame_size = frame_size;        
+        self->camera_config.jpeg_quality = jpeg_quality;    //0-63 lower number means higher quality. TODO: Harmonization in API and Validation
+        self->camera_config.pin_d0 = data_pins[0];
+        self->camera_config.pin_d1 = data_pins[1];
+        self->camera_config.pin_d2 = data_pins[2];
+        self->camera_config.pin_d3 = data_pins[3];
+        self->camera_config.pin_d4 = data_pins[4];
+        self->camera_config.pin_d5 = data_pins[5];
+        self->camera_config.pin_d6 = data_pins[6];
+        self->camera_config.pin_d7 = data_pins[7];
+        self->camera_config.pin_vsync = vsync_pin;
+        self->camera_config.pin_href = href_pin;
+        self->camera_config.pin_pclk = pixel_clock_pin;
+        self->camera_config.pin_pwdn = powerdown_pin;
+        self->camera_config.pin_reset = reset_pin;
+        self->camera_config.pin_xclk = external_clock_pin;
+        self->camera_config.pin_sscb_sda = sccb_sda_pin;
+        self->camera_config.pin_sscb_scl = sccb_scl_pin;
+        self->camera_config.xclk_freq_hz = xclk_freq_hz;
+        self->camera_config.fb_count = framebuffer_count;      //if more than one, i2s runs in continuous mode. TODO: Test with others than JPEG
+        self->camera_config.grab_mode = grab_mode;
 
+        // defaul parameters
+        self->camera_config.fb_location = CAMERA_FB_IN_PSRAM;
+        self->camera_config.ledc_timer = LEDC_TIMER_0;
+        self->camera_config.ledc_channel = LEDC_CHANNEL_0;
+
+        self->initialized = false;
+        self->capture_buffer = NULL;
+    }
 
 void machine_hw_camera_init(mp_camera_obj_t *self) {
     if (self->initialized) {
@@ -101,7 +130,7 @@ void machine_hw_camera_init(mp_camera_obj_t *self) {
     esp_err_t err = esp_camera_init(&temp_config);
     raise_micropython_error_from_esp_err(err);
     self->initialized = true;
-    machine_hw_camera_reconfigure(&self);
+    machine_hw_camera_reconfigure(self);
 }
 
 void machine_hw_camera_deinit(mp_camera_obj_t *self) {
@@ -110,18 +139,6 @@ void machine_hw_camera_deinit(mp_camera_obj_t *self) {
         raise_micropython_error_from_esp_err(err);
         self->initialized = false;
     }
-}
-
-mp_camera_fb_t machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms) {
-    // Timeout not used at the moment
-    if (!self->initialized) {
-        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Failed to capture image: Camera not initialized"));
-    }
-    if (self->capture_buffer) {
-        esp_camera_fb_return(self->capture_buffer);
-        self->capture_buffer = NULL;
-    }
-    return self->capture_buffer = esp_camera_fb_get();
 }
 
 void machine_hw_camera_reconfigure(mp_camera_obj_t *self) {
@@ -135,12 +152,12 @@ void machine_hw_camera_reconfigure(mp_camera_obj_t *self) {
 
         if (self->camera_config.frame_size > sensor_info->max_size) {
             mp_warning(NULL, "Frame size will be scaled down to maximal frame size supported by the camera sensor");
-            frame_size = sensor_info->max_size;
+            self->camera_config.frame_size = sensor_info->max_size;
         }
         
         raise_micropython_error_from_esp_err(esp_camera_deinit());
 
-        esp_err_t err = esp_camera_init(&camera->config);
+        esp_err_t err = esp_camera_init(&self->camera_config);
         if (err != ESP_OK) {
             self->initialized = false;
             raise_micropython_error_from_esp_err(err);
@@ -148,8 +165,35 @@ void machine_hw_camera_reconfigure(mp_camera_obj_t *self) {
     }
 }
 
+mp_obj_t machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms) {
+    // Timeout not used at the moment
+    if (!self->initialized) {
+        mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("Failed to capture image: Camera not initialized"));
+    }
+    if (self->capture_buffer) {
+        esp_camera_fb_return(self->capture_buffer);
+        self->capture_buffer = NULL;
+    }
+    self->capture_buffer = esp_camera_fb_get();
+
+    if (self->camera_config.format == PIXFORMAT_JPEG) {
+        return mp_obj_new_memoryview('b', self->capture_buffer->len, self->capture_buffer->buf);
+        //ChatGPT sagt: return mp_obj_new_memoryview(MP_OBJ_FROM_PTR(self->capture_buffer->buf));
+    } else {
+        return mp_obj_new_memoryview('b', self->capture_buffer->len, self->capture_buffer->buf);
+        // Stub at the moment in order to return raw data, but it sould be implemented to return a Bitmap, see following circuitpython example:
+        //
+        // int width = common_hal_espcamera_camera_get_width(self);
+        // int height = common_hal_espcamera_camera_get_height(self);
+        // displayio_bitmap_t *bitmap = m_new_obj(displayio_bitmap_t);
+        // bitmap->base.type = &displayio_bitmap_type;
+        // common_hal_displayio_bitmap_construct_from_buffer(bitmap, width, height, (format == PIXFORMAT_RGB565) ? 16 : 8, (uint32_t *)(void *)result->buf, true);
+        // return bitmap;
+    }
+}
+
 // Helper functions to get and set camera and sensor information
-// TODO: add init flag to helper methods
+// TODO: add init flag to helper methods or at this in higher level api
 
 #define SENSOR_STATUS_GETSET(type, name, status_field_name, setter_function_name) \
     SENSOR_GETSET(type, name, status.status_field_name, setter_function_name)
@@ -258,23 +302,29 @@ const int machine_hw_camera_get_address(mp_camera_obj_t *self) {
 //     return resolution[framesize].height;
 // }
 
+
 /******************************************************************************/
 // MicroPython bindings for machine API
 
 static void machine_hw_camera_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     mp_camera_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    // TODO
-    mp_printf(print, "",);
+    if (self->initialized) {
+        mp_printf(print, "ESP32 camera with sensor %s", machine_hw_camera_get_sensor_name(self));
+    } else {
+        mp_printf(print, "ESP32 camera");
+    }
 }
 
 mp_obj_t machine_hw_camera_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
-    // TODO
+    mp_camera_obj_t *self = m_new_obj(mp_camera_obj_t);
+    self->base.type = &mp_camera_obj_t;
+    // Initialisierung und Konfiguration hier hinzufügen
     return MP_OBJ_FROM_PTR(self);
 }
 
 // locals_dict, &mp_machine_camera_locals_dict maybe needed, also, MP_TYPE_FLAG_HAS_SPECIAL_ACCESSORS instead of MP_TYPE_FLAG_NONE possible
 MP_DEFINE_CONST_OBJ_TYPE(
-    machine_camera_type,
+    mp_camera_obj_t,
     MP_QSTR_CAMERA,
     MP_TYPE_FLAG_NONE,
     make_new, machine_hw_camera_make_new,

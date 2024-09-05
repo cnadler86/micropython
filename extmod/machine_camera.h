@@ -26,7 +26,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
+#ifndef MICROPY_INCLUDED_EXTMOD_MACHINE_CAMERA_H
+#define MICROPY_INCLUDED_EXTMOD_MACHINE_CAMERA_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -37,6 +38,18 @@
 #include "py/runtime.h"
 
 #if MICROPY_PY_MACHINE_CAMERA
+
+#define X(enum_value) MP_REGISTER_ENUM_CONST(enum_value), 
+#define MP_REGISTER_ENUM_CONST_LIST(enum_list) \ 
+    const mp_rom_map_elem_t example_module_globals_table[] = { \ 
+        enum_list \ 
+    }; \ 
+    static MP_DEFINE_CONST_DICT(mp_module_example_globals, example_module_globals_table); \ 
+    const mp_obj_module_t mp_module_example = { \ 
+        .base = { &mp_type_module }, \ 
+        .globals = (mp_obj_dict_t*)&mp_module_example_globals, \ 
+    }; \ 
+    MP_REGISTER_MODULE(MP_QSTR_example, mp_module_example, MODULE_EXAMPLE_ENABLED);
 
 #if MICROPY_HW_ESP32
 #include "esp_camera.h" //maybe driver/esp_camera.h, but don't know yet where will the driver be located in esp-idf
@@ -79,7 +92,7 @@ extern void machine_hw_camera_construct(
 
 extern void machine_hw_camera_init(mp_camera_obj_t *self); //since we are not passing handles at construction, init() is used to create those handles
 extern void machine_hw_camera_deinit(mp_camera_obj_t *self);
-extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, framesize_t frame_size, pixformat_t pixel_format, camera_grab_mode_t grab_mode, uint8_t framebuffer_count);
+extern void machine_hw_camera_reconfigure(mp_camera_obj_t *self, mp_camera_framesize_t frame_size, mp_camera_pixformat_t pixel_format, mp_camera_grab_mode_t grab_mode, uint8_t framebuffer_count);
 
 extern mp_camera_fb_t *machine_hw_camera_capture(mp_camera_obj_t *self, int timeout_ms);
 
@@ -135,7 +148,7 @@ extern int machine_hw_camera_get_framebuffer_count(mp_camera_obj_t *self);
 // From camera_sensor_info_t
 extern int machine_hw_camera_get_address(mp_camera_obj_t *self);
 extern const char *machine_hw_camera_get_sensor_name(mp_camera_obj_t *self);
-extern const bool machine_hw_camera_get_supports_jpeg(mp_camera_obj_t *self);
+extern bool machine_hw_camera_get_supports_jpeg(mp_camera_obj_t *self);
 extern mp_camera_framesize_t machine_hw_camera_get_max_frame_size(mp_camera_obj_t *self);
 extern int machine_hw_camera_get_width(mp_camera_obj_t *self);
 extern int machine_hw_camera_get_height(mp_camera_obj_t *self);

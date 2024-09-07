@@ -309,9 +309,9 @@ const int machine_hw_camera_get_address(mp_camera_obj_t *self) {
 static void machine_hw_camera_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     mp_camera_obj_t *self = MP_OBJ_TO_PTR(self_in);
     if (self->initialized) {
-        mp_printf(print, "ESP32 camera with sensor %s", machine_hw_camera_get_sensor_name(self));
+        mp_printf(print, "Camera with sensor %s", machine_hw_camera_get_sensor_name(self));
     } else {
-        mp_printf(print, "ESP32 camera");
+        mp_printf(print, "Camera unknown");
     }
 }
 

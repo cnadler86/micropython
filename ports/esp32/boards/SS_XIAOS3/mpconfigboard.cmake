@@ -7,7 +7,7 @@ set(SDKCONFIG_DEFAULTS
     boards/sdkconfig.240mhz
     boards/sdkconfig.spiram_sx
     boards/sdkconfig.spiram_oct
-    boards/ESP32S3_XIAO_SENSE/sdkconfig.board
+    boards/SS_XIAOS3/sdkconfig.board
 )
 
 

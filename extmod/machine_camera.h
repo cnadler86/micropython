@@ -84,7 +84,7 @@ extern void machine_hw_camera_construct(
     uint8_t reset_pin,
     uint8_t sccb_sda_pin,
     uint8_t sccb_scl_pin,
-    uint8_t xclk_freq_hz,
+    int xclk_freq_hz,
     mp_camera_pixformat_t pixel_format,
     mp_camera_framesize_t frame_size,
     uint8_t jpeg_quality,
@@ -155,3 +155,4 @@ extern int machine_hw_camera_get_width(mp_camera_obj_t *self);
 extern int machine_hw_camera_get_height(mp_camera_obj_t *self);
 
 #endif // MICROPY_PY_MACHINE_CAMERA
+#endif // MICROPY_INCLUDED_EXTMOD_MACHINE_CAMERA_H

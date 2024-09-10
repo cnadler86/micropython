@@ -12,4 +12,14 @@
 #define MICROPY_HW_I2C0_SCL                 (5)
 #define MICROPY_HW_I2C0_SDA                 (4)
 
-#define MODULE_CAMERA_ENABLED               (1)
+#define MP_CAMERA_MODULE_ENABLED            (1)
+
+#define MICROPY_CAMERA_PINS_DATA   ({15,17,18,16,14,12,11,48})
+#define MICROPY_CAMERA_PIN_PCLK    (13)
+#define MICROPY_CAMERA_PIN_VSYNC   (38)
+#define MICROPY_CAMERA_PIN_HREF    (47)
+#define MICROPY_CAMERA_PIN_XCLK    (10)
+#define MICROPY_CAMERA_PIN_PWDN    (-1)
+#define MICROPY_CAMERA_PIN_RESET   (-1)
+#define MICROPY_CAMERA_PIN_SIOD    (40)
+#define MICROPY_CAMERA_PIN_SIOC    (39)

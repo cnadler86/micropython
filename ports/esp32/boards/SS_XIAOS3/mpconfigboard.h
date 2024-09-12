@@ -9,8 +9,12 @@
 // Enable UART REPL for modules that have an external USB-UART and don't use native USB.
 #define MICROPY_HW_ENABLE_UART_REPL         (0)
 
-#define MICROPY_HW_I2C0_SCL                 (5)
-#define MICROPY_HW_I2C0_SDA                 (4)
+#define MICROPY_HW_I2C0_SCL                 (6)
+#define MICROPY_HW_I2C0_SDA                 (5)
+
+#define MICROPY_HW_SPI1_MOSI                (9)
+#define MICROPY_HW_SPI1_MISO                (8)
+#define MICROPY_HW_SPI1_SCK                 (7)
 
 #define MP_CAMERA_MODULE_ENABLED            (1)
 

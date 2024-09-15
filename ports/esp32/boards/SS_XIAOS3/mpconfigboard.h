@@ -16,8 +16,7 @@
 #define MICROPY_HW_SPI1_MISO                (8)
 #define MICROPY_HW_SPI1_SCK                 (7)
 
-#define MP_CAMERA_MODULE_ENABLED            (1)
-
+#define MP_CAMERA_MODULE_ENABLED    (1)
 #define MICROPY_CAMERA_PIN_D0       (15)
 #define MICROPY_CAMERA_PIN_D1       (17)
 #define MICROPY_CAMERA_PIN_D2       (18)
@@ -34,3 +33,7 @@
 #define MICROPY_CAMERA_PIN_RESET    (-1)
 #define MICROPY_CAMERA_PIN_SIOD     (40)
 #define MICROPY_CAMERA_PIN_SIOC     (39)
+#define MICROPY_CAMERA_XCLK_FREQ    (20)
+#define MICROPY_CAMERA_FB_COUNT     (2)
+#define MICROPY_CAMERA_JPEG_QUALITY (10)
+#define MICROPY_CAMERA_GRAB_MODE    (1)

@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2017 Linaro Limited
+ * Copyright (c) 2024 Arduino SA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,14 +24,22 @@
  * THE SOFTWARE.
  */
 
-#include <stdbool.h>
-#include <stdio.h>
-#include "py/mpconfig.h"
-#include "lib/tinytest/tinytest.h"
-#include "lib/tinytest/tinytest_macros.h"
+#include "storage.h"
+#include "qspi.h"
 
-void upytest_set_heap(void *start, void *end);
-void upytest_set_expected_output(const char *output, unsigned len);
-void upytest_execute_test(const char *src);
-void upytest_output(const char *str, mp_uint_t len);
-bool upytest_is_failed(void);
+#if MICROPY_HW_SPIFLASH_ENABLE_CACHE
+// Shared cache for first and second SPI block devices
+static mp_spiflash_cache_t spi_bdev_cache;
+#endif
+
+// First external SPI flash uses hardware QSPI interface
+const mp_spiflash_config_t spiflash_config = {
+    .bus_kind = MP_SPIFLASH_BUS_QSPI,
+    .bus.u_qspi.data = NULL,
+    .bus.u_qspi.proto = &qspi_proto,
+    #if MICROPY_HW_SPIFLASH_ENABLE_CACHE
+    .cache = &spi_bdev_cache,
+    #endif
+};
+
+spi_bdev_t spi_bdev;

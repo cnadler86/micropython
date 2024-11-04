@@ -36,19 +36,43 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 
+#include <pthread.h>
+
+#define MP_ESPMOD_OSDEBUG_LOG2REPL (-1) 
+
+pthread_mutex_t mp_espmod_repl_print_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+int esp_osdebug_repl_writer(const char *format, va_list args) {
+        pthread_mutex_lock(&mp_espmod_repl_print_mutex);
+        mp_vprintf(&mp_plat_print, format, args);
+        pthread_mutex_unlock(&mp_espmod_repl_print_mutex);
+        mp_hal_delay_ms(1);
+    return 0;
+}
+
 static mp_obj_t esp_osdebug(size_t n_args, const mp_obj_t *args) {
     esp_log_level_t level = LOG_LOCAL_LEVEL; // Maximum available level
     if (n_args == 2) {
+        // Enable logging at the given level
         level = mp_obj_get_int(args[1]);
     }
-    if (args[0] == mp_const_none) {
-        // Set logging back to boot default of ESP_LOG_ERROR
-        esp_log_level_set("*", ESP_LOG_ERROR);
-    } else {
-        // Enable logging at the given level
-        // TODO args[0] should set the UART to which debug is sent
-        esp_log_level_set("*", level);
+    // Save initial printer function and change to repl printer
+    static int (*vprintf_log)(const char *, va_list) = NULL;
+    if (vprintf_log == NULL) {
+        vprintf_log = esp_log_set_vprintf(esp_osdebug_repl_writer);
     }
+    if (args[0] == mp_const_none) {
+        // Set logging back to boot default printer and ESP_LOG_ERROR level
+        esp_log_set_vprintf(vprintf_log);
+        esp_log_level_set("*", ESP_LOG_ERROR);
+        return mp_const_none;
+    } else if (mp_obj_get_int(args[0]) != MP_ESPMOD_OSDEBUG_LOG2REPL) {
+        // Set logging printer back to default
+         esp_log_set_vprintf(vprintf_log);
+        // TODO args[0] should set the UART to which debug is sent
+    }
+    esp_log_level_set("*", level);
+    ESP_LOGI("ESP_LOG", "ESP_LOG set to %d", level);
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_osdebug_obj, 1, 2, esp_osdebug);
@@ -133,6 +157,8 @@ static const mp_rom_map_elem_t esp_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_LOG_INFO), MP_ROM_INT((mp_uint_t)ESP_LOG_INFO)},
     { MP_ROM_QSTR(MP_QSTR_LOG_DEBUG), MP_ROM_INT((mp_uint_t)ESP_LOG_DEBUG)},
     { MP_ROM_QSTR(MP_QSTR_LOG_VERBOSE), MP_ROM_INT((mp_uint_t)ESP_LOG_VERBOSE)},
+    // Constants for first arg of osdebug()
+    { MP_ROM_QSTR(MP_QSTR_LOG2REPL), MP_ROM_INT((mp_uint_t)MP_ESPMOD_OSDEBUG_LOG2REPL)},
 };
 
 static MP_DEFINE_CONST_DICT(esp_module_globals, esp_module_globals_table);

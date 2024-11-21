@@ -36,17 +36,24 @@
 #include "py/mperrno.h"
 #include "py/mphal.h"
 
-#include <pthread.h>
+#include "py/mpthread.h"
 
 #define MP_ESPMOD_OSDEBUG_LOG2REPL (-1) 
 
-pthread_mutex_t mp_espmod_repl_print_mutex = PTHREAD_MUTEX_INITIALIZER;
+static mp_thread_mutex_t mp_espmod_repl_print_mutex;
+static bool mutex_initialized = false;
 
 int esp_osdebug_repl_writer(const char *format, va_list args) {
-        pthread_mutex_lock(&mp_espmod_repl_print_mutex);
-        mp_vprintf(&mp_plat_print, format, args);
-        pthread_mutex_unlock(&mp_espmod_repl_print_mutex);
-        mp_hal_delay_ms(1);
+    if (!mutex_initialized) {
+        mp_thread_mutex_init(&mp_espmod_repl_print_mutex);
+        mutex_initialized = true;
+    }
+    
+    mp_thread_mutex_lock(&mp_espmod_repl_print_mutex, 1); // 1 = blockierender Modus
+    mp_vprintf(&mp_plat_print, format, args);
+    mp_hal_delay_ms(1);
+    mp_thread_mutex_unlock(&mp_espmod_repl_print_mutex);
+
     return 0;
 }
 

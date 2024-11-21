@@ -41,9 +41,9 @@
 #define MP_ESPMOD_OSDEBUG_LOG2REPL (-1) 
 
 static mp_thread_mutex_t mp_espmod_repl_print_mutex;
-static bool mutex_initialized = false;
 
 int esp_osdebug_repl_writer(const char *format, va_list args) {
+    static bool mutex_initialized = false;
     if (!mutex_initialized) {
         mp_thread_mutex_init(&mp_espmod_repl_print_mutex);
         mutex_initialized = true;
@@ -53,7 +53,6 @@ int esp_osdebug_repl_writer(const char *format, va_list args) {
     mp_vprintf(&mp_plat_print, format, args);
     mp_hal_delay_ms(1);
     mp_thread_mutex_unlock(&mp_espmod_repl_print_mutex);
-
     return 0;
 }
 

@@ -45,13 +45,22 @@ static mp_thread_mutex_t mp_espmod_repl_print_mutex;
 int esp_osdebug_repl_writer(const char *format, va_list args) {
     static bool mutex_initialized = false;
     if (!mutex_initialized) {
+        mp_printf(&mp_plat_print, "initializing mutex\n");
         mp_thread_mutex_init(&mp_espmod_repl_print_mutex);
         mutex_initialized = true;
     }
-    
+    mp_printf(&mp_plat_print, "locking\n");
     mp_thread_mutex_lock(&mp_espmod_repl_print_mutex, 1); // 1 = blockierender Modus
-    mp_vprintf(&mp_plat_print, format, args);
+    
+    if (format == NULL || *format == '\0') {
+        mp_printf(&mp_plat_print, "printing empty line\n");
+        mp_printf(&mp_plat_print, "\n");
+    } else {
+        mp_printf(&mp_plat_print, "printing\n");
+        mp_vprintf(&mp_plat_print, format, args);
+    }
     mp_hal_delay_ms(1);
+    mp_printf(&mp_plat_print, "unlocking\n");
     mp_thread_mutex_unlock(&mp_espmod_repl_print_mutex);
     return 0;
 }

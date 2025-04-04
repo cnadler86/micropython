@@ -49,18 +49,18 @@ int esp_osdebug_repl_writer(const char *format, va_list args) {
         mp_thread_mutex_init(&mp_espmod_repl_print_mutex);
         mutex_initialized = true;
     }
-    mp_printf(&mp_plat_print, "locking\n");
+    // mp_printf(&mp_plat_print, "locking\n");
     mp_thread_mutex_lock(&mp_espmod_repl_print_mutex, 1); // 1 = blockierender Modus
     
     if (format == NULL || *format == '\0') {
-        mp_printf(&mp_plat_print, "printing empty line\n");
+        // mp_printf(&mp_plat_print, "printing empty line\n");
         mp_printf(&mp_plat_print, "\n");
     } else {
-        mp_printf(&mp_plat_print, "printing\n");
+        // mp_printf(&mp_plat_print, "printing\n");
         mp_vprintf(&mp_plat_print, format, args);
     }
     mp_hal_delay_ms(1);
-    mp_printf(&mp_plat_print, "unlocking\n");
+    // mp_printf(&mp_plat_print, "unlocking\n");
     mp_thread_mutex_unlock(&mp_espmod_repl_print_mutex);
     return 0;
 }
@@ -75,6 +75,8 @@ static mp_obj_t esp_osdebug(size_t n_args, const mp_obj_t *args) {
     static int (*vprintf_log)(const char *, va_list) = NULL;
     if (vprintf_log == NULL) {
         vprintf_log = esp_log_set_vprintf(esp_osdebug_repl_writer);
+    } else {
+        esp_log_set_vprintf(esp_osdebug_repl_writer);
     }
     if (args[0] == mp_const_none) {
         // Set logging back to boot default printer and ESP_LOG_ERROR level
